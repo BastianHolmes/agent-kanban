@@ -40,6 +40,18 @@ async def chat(request: Request, body: ChatRequest):
     if not user_id or not board_id:
         raise HTTPException(status_code=400, detail="Missing user/board context")
 
+    # Auto-reindex on first chat with a board
+    indexer = request.app.state.indexer
+    retriever = request.app.state.retriever
+    collection_name = f"board_{board_id}"
+    if not retriever.qdrant.collection_exists(collection_name):
+        logger.info("First chat with board %s — triggering auto-reindex", board_id)
+        go_client = request.app.state.go_client
+        try:
+            _do_reindex(indexer, go_client, board_id, board_key, user_id)
+        except Exception as e:
+            logger.error("Auto-reindex failed for board %s: %s", board_id, e)
+
     graph = request.app.state.graph
     session_id = body.session_id or str(uuid.uuid4())
 
@@ -127,22 +139,11 @@ async def index_event(request: Request, body: IndexEvent):
     return {"status": "ok"}
 
 
-@router.post("/index/reindex/{board_id}")
-async def reindex_board(request: Request, board_id: str):
-    indexer = request.app.state.indexer
-    go_client = request.app.state.go_client
-    board_key = request.headers.get("X-Board-Key", "")
-    user_id = request.headers.get("X-User-ID", "")
-
-    logger.info("Full reindex requested for board %s (key=%s)", board_id, board_key)
-
-    if not board_key or not user_id:
-        raise HTTPException(status_code=400, detail="Missing X-Board-Key or X-User-ID headers")
-
+def _do_reindex(indexer, go_client, board_id: str, board_key: str, user_id: str) -> dict:
+    """Reindex all cards and docs for a board. Used by both auto-reindex and manual endpoint."""
     indexed = {"cards": 0, "docs": 0}
 
     try:
-        # Index all cards from board state
         board_data = go_client.get_board_full(board_key, user_id)
         board = board_data.get("board", board_data)
         columns = board.get("columns", [])
@@ -164,7 +165,6 @@ async def reindex_board(request: Request, board_id: str):
         logger.error("Failed to index cards: %s", e)
 
     try:
-        # Index all documents
         tree_data = go_client.get_doc_tree(board_key, user_id)
 
         def extract_files(node, path=""):
@@ -197,4 +197,20 @@ async def reindex_board(request: Request, board_id: str):
         logger.error("Failed to index docs: %s", e)
 
     logger.info("Reindex complete for board %s: %s", board_id, indexed)
+    return indexed
+
+
+@router.post("/index/reindex/{board_id}")
+async def reindex_board(request: Request, board_id: str):
+    indexer = request.app.state.indexer
+    go_client = request.app.state.go_client
+    board_key = request.headers.get("X-Board-Key", "")
+    user_id = request.headers.get("X-User-ID", "")
+
+    logger.info("Full reindex requested for board %s (key=%s)", board_id, board_key)
+
+    if not board_key or not user_id:
+        raise HTTPException(status_code=400, detail="Missing X-Board-Key or X-User-ID headers")
+
+    indexed = _do_reindex(indexer, go_client, board_id, board_key, user_id)
     return {"status": "done", "board_id": board_id, "indexed": indexed}
