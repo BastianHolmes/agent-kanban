@@ -54,7 +54,8 @@ def code_node(state: AgentState, retriever, go_client) -> dict:
         )
         resp.raise_for_status()
         data = resp.json()
-        answer = data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        answer = msg.get("content", "") or msg.get("reasoning_content", "")
     except Exception as e:
         logger.error("Code node LLM call failed: %s", e)
         return {"response": "Не удалось проанализировать код.", "sources": []}

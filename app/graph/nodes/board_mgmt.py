@@ -72,7 +72,8 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
         )
         resp.raise_for_status()
         data = resp.json()
-        raw = data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        raw = msg.get("content", "") or msg.get("reasoning_content", "")
 
         cleaned = raw.strip()
         if cleaned.startswith("```"):

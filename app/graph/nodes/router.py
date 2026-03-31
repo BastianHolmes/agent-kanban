@@ -38,10 +38,16 @@ def _classify_intent(message: str) -> str:
         )
         resp.raise_for_status()
         data = resp.json()
-        intent = data["choices"][0]["message"]["content"].strip().lower().strip('"')
+        msg = data["choices"][0]["message"]
+        # kimi-k2.5 may return content in reasoning_content instead of content
+        raw = msg.get("content", "") or msg.get("reasoning_content", "")
+        intent = raw.strip().lower().strip('"').strip("'")
 
-        if intent in ("rag", "board_management", "code"):
-            return intent
+        # Extract intent keyword from longer responses
+        for candidate in ("board_management", "code", "rag"):
+            if candidate in intent:
+                return candidate
+
         logger.warning("Unknown intent from LLM: %s, defaulting to rag", intent)
         return "rag"
     except Exception as e:

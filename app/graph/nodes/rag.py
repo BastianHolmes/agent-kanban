@@ -59,7 +59,8 @@ def rag_node(state: AgentState, retriever) -> dict:
         )
         resp.raise_for_status()
         data = resp.json()
-        answer = data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        answer = msg.get("content", "") or msg.get("reasoning_content", "")
     except Exception as e:
         logger.error("RAG LLM call failed: %s", e)
         answer = "Произошла ошибка при генерации ответа. Попробуйте позже."
