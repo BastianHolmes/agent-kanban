@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.retriever = retriever
     app.state.go_client = go_client
     app.state.pending_actions = {}
+    app.state.sessions = {}  # session_id -> list of messages
 
     from app.scheduler.jobs import start_scheduler, stop_scheduler
     start_scheduler(indexer, go_client)

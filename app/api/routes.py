@@ -55,10 +55,17 @@ async def chat(request: Request, body: ChatRequest):
             logger.error("Auto-reindex failed for board %s: %s", board_id, e)
 
     graph = request.app.state.graph
+    sessions = request.app.state.sessions
     session_id = body.session_id or str(uuid.uuid4())
 
+    # Load or create session history
+    if session_id not in sessions:
+        sessions[session_id] = []
+    history = sessions[session_id]
+    history.append({"role": "user", "content": body.message})
+
     initial_state = AgentState(
-        messages=[{"role": "user", "content": body.message}],
+        messages=list(history),
         board_id=board_id, board_key=board_key, user_id=user_id, user_role=user_role, auth_token=auth_token,
         intent="", rag_context=[], pending_action=None, confirmed=None,
         tool_results=[], response="", sources=[], error=None,
@@ -70,6 +77,8 @@ async def chat(request: Request, body: ChatRequest):
             result = await loop.run_in_executor(None, graph.invoke, initial_state)
 
             response_text = result.get("response", "")
+            # Save assistant response to session history
+            history.append({"role": "assistant", "content": response_text})
             words = response_text.split(" ")
             for i, word in enumerate(words):
                 token = word if i == 0 else " " + word

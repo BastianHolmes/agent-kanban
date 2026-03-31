@@ -57,11 +57,18 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
         board_state=json.dumps(board_state, ensure_ascii=False, indent=2),
     )
 
+    # Build messages with conversation history
+    all_messages = state.get("messages", [])
+    llm_messages = [{"role": "system", "content": prompt}]
+    for msg in all_messages[:-1][-10:]:
+        llm_messages.append({"role": msg["role"], "content": msg["content"]})
+    llm_messages.append({"role": "user", "content": query})
+
     payload = {
         "model": settings.kimi_model,
         "max_tokens": 1000,
         "temperature": 1,
-        "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": query}],
+        "messages": llm_messages,
     }
 
     try:
