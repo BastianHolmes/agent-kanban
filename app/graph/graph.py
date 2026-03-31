@@ -25,17 +25,17 @@ def build_graph(retriever, go_client):
     graph.add_node("board_management", partial(board_mgmt_node, go_client=go_client))
     graph.add_node("code", partial(code_node, retriever=retriever, go_client=go_client))
     graph.add_node("confirm", confirm_node)
-    graph.add_node("response", response_node)
+    graph.add_node("format_response", response_node)
 
     graph.set_entry_point("validator")
     graph.add_edge("validator", "router")
 
-    graph.add_conditional_edges("router", route_by_intent, {"rag": "rag", "board_management": "board_management", "code": "code", "response": "response"})
-    graph.add_conditional_edges("rag", route_after_action, {"confirm": "confirm", "response": "response"})
-    graph.add_conditional_edges("board_management", route_after_action, {"confirm": "confirm", "response": "response"})
-    graph.add_conditional_edges("code", route_after_action, {"confirm": "confirm", "response": "response"})
-    graph.add_conditional_edges("confirm", route_after_confirm, {"response": "response"})
+    graph.add_conditional_edges("router", route_by_intent, {"rag": "rag", "board_management": "board_management", "code": "code", "response": "format_response"})
+    graph.add_conditional_edges("rag", route_after_action, {"confirm": "confirm", "response": "format_response"})
+    graph.add_conditional_edges("board_management", route_after_action, {"confirm": "confirm", "response": "format_response"})
+    graph.add_conditional_edges("code", route_after_action, {"confirm": "confirm", "response": "format_response"})
+    graph.add_conditional_edges("confirm", route_after_confirm, {"response": "format_response"})
 
-    graph.add_edge("response", END)
+    graph.add_edge("format_response", END)
 
     return graph.compile()
