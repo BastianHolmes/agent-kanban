@@ -69,7 +69,7 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
             settings.kimi_api_url,
             json=payload,
             headers={"Authorization": f"Bearer {settings.kimi_api_key}", "Content-Type": "application/json"},
-            timeout=60,
+            timeout=180,
         )
         resp.raise_for_status()
         data = resp.json()
