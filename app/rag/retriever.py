@@ -18,12 +18,17 @@ class Retriever:
         self.embeddings = embeddings
 
     def search(self, query: str, board_id: str, top_k: int = 10, source_type: str | None = None) -> list[dict]:
+        collection = _collection_name(board_id)
+        if not self.qdrant.collection_exists(collection):
+            logger.info("Collection %s does not exist yet, returning empty results", collection)
+            return []
+
         vector = self.embeddings.encode(query)
         query_filter = None
         if source_type:
             query_filter = Filter(must=[FieldCondition(key="source_type", match=MatchValue(value=source_type))])
         results = self.qdrant.search(
-            collection_name=_collection_name(board_id),
+            collection_name=collection,
             query_vector=vector,
             query_filter=query_filter,
             limit=top_k,

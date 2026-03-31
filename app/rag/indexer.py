@@ -8,7 +8,7 @@ from app.rag.embeddings import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
-VECTOR_SIZE = 1024
+VECTOR_SIZE = 384
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 

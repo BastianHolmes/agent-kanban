@@ -128,6 +128,73 @@ async def index_event(request: Request, body: IndexEvent):
 
 
 @router.post("/index/reindex/{board_id}")
-async def reindex_board(board_id: str):
-    logger.info("Full reindex requested for board %s", board_id)
-    return {"status": "queued", "board_id": board_id}
+async def reindex_board(request: Request, board_id: str):
+    indexer = request.app.state.indexer
+    go_client = request.app.state.go_client
+    board_key = request.headers.get("X-Board-Key", "")
+    user_id = request.headers.get("X-User-ID", "")
+
+    logger.info("Full reindex requested for board %s (key=%s)", board_id, board_key)
+
+    if not board_key or not user_id:
+        raise HTTPException(status_code=400, detail="Missing X-Board-Key or X-User-ID headers")
+
+    indexed = {"cards": 0, "docs": 0}
+
+    try:
+        # Index all cards from board state
+        board_data = go_client.get_board_full(board_key, user_id)
+        board = board_data.get("board", board_data)
+        columns = board.get("columns", [])
+        for col in columns:
+            col_title = col.get("title", "")
+            for card in col.get("cards", []):
+                indexer.index_card(
+                    board_id=board_id,
+                    card_number=card.get("number", 0),
+                    title=card.get("title", ""),
+                    description=card.get("description", ""),
+                    column=col_title,
+                    assignee=card.get("assignee", {}).get("name") if card.get("assignee") else None,
+                    priority=card.get("priority"),
+                    tags=[t.get("name", "") for t in card.get("tags", [])],
+                )
+                indexed["cards"] += 1
+    except Exception as e:
+        logger.error("Failed to index cards: %s", e)
+
+    try:
+        # Index all documents
+        tree_data = go_client.get_doc_tree(board_key, user_id)
+
+        def extract_files(node, path=""):
+            results = []
+            if "files" in node:
+                for f in node["files"]:
+                    results.append((f.get("id", ""), f.get("name", ""), path))
+            if "folders" in node:
+                for folder in node["folders"]:
+                    folder_path = f"{path}/{folder.get('name', '')}"
+                    results.extend(extract_files(folder, folder_path))
+            return results
+
+        all_files = extract_files(tree_data)
+        for file_id, file_name, folder_path in all_files:
+            try:
+                file_data = go_client.get_doc_file(board_key, file_id, user_id)
+                doc = file_data.get("file", file_data)
+                indexer.index_document(
+                    board_id=board_id,
+                    file_id=file_id,
+                    title=doc.get("name", file_name),
+                    content=doc.get("content", ""),
+                    folder_path=folder_path,
+                )
+                indexed["docs"] += 1
+            except Exception as e:
+                logger.error("Failed to index doc %s: %s", file_id, e)
+    except Exception as e:
+        logger.error("Failed to index docs: %s", e)
+
+    logger.info("Reindex complete for board %s: %s", board_id, indexed)
+    return {"status": "done", "board_id": board_id, "indexed": indexed}

@@ -63,3 +63,18 @@ class GoClient:
         resp = self.client.post(f"/api/v1/boards/{board_key}/cards/{card_number}/apply-fix", headers=self._headers(user_id))
         resp.raise_for_status()
         return resp.json()
+
+    def get_board_full(self, board_key: str, user_id: str) -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}", headers=self._headers(user_id))
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_doc_tree(self, board_key: str, user_id: str) -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/tree", headers=self._headers(user_id))
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_doc_file(self, board_key: str, file_id: str, user_id: str) -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/files/{file_id}", headers=self._headers(user_id))
+        resp.raise_for_status()
+        return resp.json()
