@@ -7,21 +7,22 @@ from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
-ROUTER_PROMPT = """You are an intent classifier for a kanban board AI assistant.
-Classify the user's message into one of these intents:
-- "rag" — the user is asking a question about the board's knowledge base, documentation, cards, history, or code
-- "board_management" — the user wants to create, move, update, assign, or delete cards/columns
-- "code" — the user wants to analyze code, find bugs, or get fix suggestions
+ROUTER_PROMPT = """Classify the user message into exactly one category. Reply with ONLY one word — the category name.
 
-Respond with ONLY the intent string, nothing else.
+Categories:
+- rag — question about documentation, cards, board info, or general knowledge
+- board_management — create, move, update, assign, or delete cards or columns
+- code — analyze code, find bugs, suggest fixes
 
-User message: {message}"""
+User message: {message}
+
+Category:"""
 
 
 def _classify_intent(message: str) -> str:
     payload = {
-        "model": settings.kimi_model,
-        "max_tokens": 20,
+        "model": settings.kimi_router_model,
+        "max_tokens": 100,
         "temperature": 1,
         "messages": [{"role": "user", "content": ROUTER_PROMPT.format(message=message)}],
     }
@@ -39,16 +40,23 @@ def _classify_intent(message: str) -> str:
         resp.raise_for_status()
         data = resp.json()
         msg = data["choices"][0]["message"]
-        # kimi-k2.5 may return content in reasoning_content instead of content
-        raw = msg.get("content", "") or msg.get("reasoning_content", "")
-        intent = raw.strip().lower().strip('"').strip("'")
+        raw = (msg.get("content", "") or "").strip().lower()
 
-        # Extract intent keyword from longer responses
+        # If content is empty, check reasoning_content for the answer
+        if not raw:
+            reasoning = (msg.get("reasoning_content", "") or "").strip().lower()
+            # Search reasoning for the intent keyword
+            for candidate in ("board_management", "code", "rag"):
+                if candidate in reasoning:
+                    raw = candidate
+                    break
+
+        # Extract intent from response
         for candidate in ("board_management", "code", "rag"):
-            if candidate in intent:
+            if candidate in raw:
                 return candidate
 
-        logger.warning("Unknown intent from LLM: %s, defaulting to rag", intent)
+        logger.warning("Unknown intent from LLM: content=%s, defaulting to rag", raw)
         return "rag"
     except Exception as e:
         logger.error("Intent classification failed: %s, defaulting to rag", e)
