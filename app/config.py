@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     go_api_url: str = "http://api:8080"
     qdrant_url: str = "http://qdrant:6333"
     database_url: str = "/data/agent.db"
-    embedding_model: str = "intfloat/multilingual-e5-large"
+    embedding_model: str = "intfloat/multilingual-e5-small"
     max_message_length: int = 2000
     max_tool_calls: int = 5
     tool_timeout: int = 30
