@@ -12,8 +12,11 @@ class GoClient:
         self.base_url = settings.go_api_url
         self.client = httpx.Client(base_url=self.base_url, timeout=settings.tool_timeout)
 
-    def _headers(self, user_id: str) -> dict:
-        return {"X-User-ID": user_id, "X-Internal": "true"}
+    def _headers(self, user_id: str, auth_token: str = "") -> dict:
+        h = {"X-User-ID": user_id}
+        if auth_token:
+            h["Authorization"] = auth_token
+        return h
 
     def get_board_state(self, board_id: str, user_id: str) -> dict:
         resp = self.client.get(f"/api/v1/boards/{board_id}", headers=self._headers(user_id))
@@ -64,17 +67,17 @@ class GoClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_board_full(self, board_key: str, user_id: str) -> dict:
-        resp = self.client.get(f"/api/v1/boards/{board_key}", headers=self._headers(user_id))
+    def get_board_full(self, board_key: str, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}", headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()
 
-    def get_doc_tree(self, board_key: str, user_id: str) -> dict:
-        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/tree", headers=self._headers(user_id))
+    def get_doc_tree(self, board_key: str, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/tree", headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()
 
-    def get_doc_file(self, board_key: str, file_id: str, user_id: str) -> dict:
-        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/files/{file_id}", headers=self._headers(user_id))
+    def get_doc_file(self, board_key: str, file_id: str, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.get(f"/api/v1/boards/{board_key}/docs/files/{file_id}", headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()

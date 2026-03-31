@@ -6,10 +6,10 @@ def route_by_intent(state: AgentState) -> str:
     error = state.get("error")
 
     if error:
-        return "format_response"
+        return "response"
 
     if intent == "rejected":
-        return "format_response"
+        return "response"
 
     return intent
 
@@ -18,8 +18,8 @@ def route_after_action(state: AgentState) -> str:
     pending = state.get("pending_action")
     if pending and pending.get("action", "none") != "none":
         return "confirm"
-    return "format_response"
+    return "response"
 
 
 def route_after_confirm(state: AgentState) -> str:
-    return "format_response"
+    return "response"

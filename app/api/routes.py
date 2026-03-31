@@ -37,6 +37,8 @@ async def chat(request: Request, body: ChatRequest):
     board_key = request.headers.get("X-Board-Key", "")
     user_role = request.headers.get("X-User-Role", "guest")
 
+    auth_token = request.headers.get("X-Auth-Token", "")
+
     if not user_id or not board_id:
         raise HTTPException(status_code=400, detail="Missing user/board context")
 
@@ -48,7 +50,7 @@ async def chat(request: Request, body: ChatRequest):
         logger.info("First chat with board %s — triggering auto-reindex", board_id)
         go_client = request.app.state.go_client
         try:
-            _do_reindex(indexer, go_client, board_id, board_key, user_id)
+            _do_reindex(indexer, go_client, board_id, board_key, user_id, auth_token)
         except Exception as e:
             logger.error("Auto-reindex failed for board %s: %s", board_id, e)
 
@@ -139,12 +141,12 @@ async def index_event(request: Request, body: IndexEvent):
     return {"status": "ok"}
 
 
-def _do_reindex(indexer, go_client, board_id: str, board_key: str, user_id: str) -> dict:
+def _do_reindex(indexer, go_client, board_id: str, board_key: str, user_id: str, auth_token: str = "") -> dict:
     """Reindex all cards and docs for a board. Used by both auto-reindex and manual endpoint."""
     indexed = {"cards": 0, "docs": 0}
 
     try:
-        board_data = go_client.get_board_full(board_key, user_id)
+        board_data = go_client.get_board_full(board_key, user_id, auth_token)
         board = board_data.get("board", board_data)
         columns = board.get("columns", [])
         for col in columns:
@@ -165,7 +167,7 @@ def _do_reindex(indexer, go_client, board_id: str, board_key: str, user_id: str)
         logger.error("Failed to index cards: %s", e)
 
     try:
-        tree_data = go_client.get_doc_tree(board_key, user_id)
+        tree_data = go_client.get_doc_tree(board_key, user_id, auth_token)
 
         def extract_files(node, path=""):
             results = []
@@ -181,7 +183,7 @@ def _do_reindex(indexer, go_client, board_id: str, board_key: str, user_id: str)
         all_files = extract_files(tree_data)
         for file_id, file_name, folder_path in all_files:
             try:
-                file_data = go_client.get_doc_file(board_key, file_id, user_id)
+                file_data = go_client.get_doc_file(board_key, file_id, user_id, auth_token)
                 doc = file_data.get("file", file_data)
                 indexer.index_document(
                     board_id=board_id,
@@ -207,10 +209,12 @@ async def reindex_board(request: Request, board_id: str):
     board_key = request.headers.get("X-Board-Key", "")
     user_id = request.headers.get("X-User-ID", "")
 
+    auth_token = request.headers.get("X-Auth-Token", "")
+
     logger.info("Full reindex requested for board %s (key=%s)", board_id, board_key)
 
     if not board_key or not user_id:
         raise HTTPException(status_code=400, detail="Missing X-Board-Key or X-User-ID headers")
 
-    indexed = _do_reindex(indexer, go_client, board_id, board_key, user_id)
+    indexed = _do_reindex(indexer, go_client, board_id, board_key, user_id, auth_token)
     return {"status": "done", "board_id": board_id, "indexed": indexed}
