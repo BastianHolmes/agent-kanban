@@ -7,6 +7,7 @@ class AgentState(TypedDict, total=False):
     board_key: str
     user_id: str
     user_role: str
+    auth_token: str
     intent: str
     rag_context: list[dict]
     pending_action: dict | None

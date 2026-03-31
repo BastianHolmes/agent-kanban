@@ -43,9 +43,10 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
     board_id = state["board_id"]
     user_id = state["user_id"]
     user_role = state["user_role"]
+    auth_token = state.get("auth_token", "")
 
     try:
-        board_state = go_client.get_board_state(board_id, user_id)
+        board_state = go_client.get_board_full(board_key, user_id, auth_token)
     except Exception as e:
         logger.error("Failed to fetch board state: %s", e)
         return {"response": "Не удалось получить состояние доски.", "sources": []}

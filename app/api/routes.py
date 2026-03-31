@@ -59,7 +59,7 @@ async def chat(request: Request, body: ChatRequest):
 
     initial_state = AgentState(
         messages=[{"role": "user", "content": body.message}],
-        board_id=board_id, board_key=board_key, user_id=user_id, user_role=user_role,
+        board_id=board_id, board_key=board_key, user_id=user_id, user_role=user_role, auth_token=auth_token,
         intent="", rag_context=[], pending_action=None, confirmed=None,
         tool_results=[], response="", sources=[], error=None,
     )
