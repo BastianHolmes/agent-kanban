@@ -22,7 +22,7 @@ def _classify_intent(message: str) -> str:
     payload = {
         "model": settings.kimi_model,
         "max_tokens": 20,
-        "temperature": 0,
+        "temperature": 1,
         "messages": [{"role": "user", "content": ROUTER_PROMPT.format(message=message)}],
     }
 

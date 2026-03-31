@@ -41,7 +41,7 @@ def code_node(state: AgentState, retriever, go_client) -> dict:
     payload = {
         "model": settings.kimi_model,
         "max_tokens": 2000,
-        "temperature": 0.5,
+        "temperature": 1,
         "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": query}],
     }
 

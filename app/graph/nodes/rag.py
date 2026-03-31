@@ -43,7 +43,7 @@ def rag_node(state: AgentState, retriever) -> dict:
     payload = {
         "model": settings.kimi_model,
         "max_tokens": 2000,
-        "temperature": 0.7,
+        "temperature": 1,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user_prompt},
