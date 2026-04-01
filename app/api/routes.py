@@ -61,6 +61,7 @@ async def chat(request: Request, body: ChatRequest):
     # Load or create session history
     if session_id not in sessions:
         sessions[session_id] = []
+        sessions[f"{session_id}:meta"] = {"board_id": board_id, "user_id": user_id}
     history = sessions[session_id]
     history.append({"role": "user", "content": body.message})
 
@@ -228,3 +229,44 @@ async def reindex_board(request: Request, board_id: str):
 
     indexed = _do_reindex(indexer, go_client, board_id, board_key, user_id, auth_token)
     return {"status": "done", "board_id": board_id, "indexed": indexed}
+
+
+@router.get("/sessions")
+async def list_sessions(request: Request):
+    """List all chat sessions for the current user+board."""
+    user_id = request.headers.get("X-User-ID", "")
+    board_id = request.headers.get("X-Board-ID", "")
+    sessions = request.app.state.sessions
+
+    result = []
+    for sid, messages in sessions.items():
+        # Filter by board context stored in session metadata
+        meta = sessions.get(f"{sid}:meta", {})
+        if meta.get("board_id") == board_id and meta.get("user_id") == user_id:
+            first_msg = messages[0]["content"] if messages else ""
+            result.append({
+                "session_id": sid,
+                "title": first_msg[:50],
+                "message_count": len(messages),
+            })
+
+    return {"sessions": result}
+
+
+@router.get("/sessions/{session_id}")
+async def get_session(request: Request, session_id: str):
+    """Get full message history for a session."""
+    sessions = request.app.state.sessions
+    messages = sessions.get(session_id)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"session_id": session_id, "messages": messages}
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(request: Request, session_id: str):
+    """Delete a chat session."""
+    sessions = request.app.state.sessions
+    sessions.pop(session_id, None)
+    sessions.pop(f"{session_id}:meta", None)
+    return {"status": "deleted"}
