@@ -100,7 +100,7 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
 
     payload = {
         "model": settings.kimi_model,
-        "max_tokens": 1000,
+        "max_tokens": 4000,
         "temperature": 1,
         "messages": llm_messages,
     }
