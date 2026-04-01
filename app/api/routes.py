@@ -95,21 +95,28 @@ async def chat(request: Request, body: ChatRequest):
             response_text = result.get("response", "")
             # Save assistant response to session history
             history.append({"role": "assistant", "content": response_text})
-            words = response_text.split(" ")
-            for i, word in enumerate(words):
-                token = word if i == 0 else " " + word
-                yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
-                await asyncio.sleep(0.03)
+
+            pending = result.get("pending_action")
+            has_action = pending and result.get("confirmed") is None
+
+            if has_action:
+                # Don't stream text when there's a pending action — send explanation + action together
+                request_id = str(uuid.uuid4())
+                request.app.state.pending_actions[request_id] = pending
+                explanation = pending.get("explanation", response_text)
+                yield f"event: token\ndata: {json.dumps({'content': explanation})}\n\n"
+                yield f"event: action_required\ndata: {json.dumps({'action': pending['action'], 'params': pending['params'], 'explanation': explanation, 'request_id': request_id})}\n\n"
+            else:
+                # Stream response word by word
+                words = response_text.split(" ")
+                for i, word in enumerate(words):
+                    token = word if i == 0 else " " + word
+                    yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
+                    await asyncio.sleep(0.03)
 
             sources = result.get("sources", [])
             if sources:
                 yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
-
-            pending = result.get("pending_action")
-            if pending and result.get("confirmed") is None:
-                request_id = str(uuid.uuid4())
-                request.app.state.pending_actions[request_id] = pending
-                yield f"event: action_required\ndata: {json.dumps({'action': pending['action'], 'params': pending['params'], 'explanation': pending.get('explanation', ''), 'request_id': request_id})}\n\n"
 
             yield f"event: done\ndata: {json.dumps({'session_id': session_id})}\n\n"
         except Exception as e:
