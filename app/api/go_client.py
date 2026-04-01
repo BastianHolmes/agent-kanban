@@ -28,27 +28,27 @@ class GoClient:
         resp.raise_for_status()
         return resp.json()
 
-    def create_card(self, board_key: str, column_id: str, title: str, description: str, user_id: str) -> dict:
+    def create_card(self, board_key: str, column_id: str, title: str, description: str, user_id: str, auth_token: str = "") -> dict:
         resp = self.client.post(
             f"/api/v1/boards/{board_key}/columns/{column_id}/cards",
             json={"title": title, "description": description},
-            headers=self._headers(user_id),
+            headers=self._headers(user_id, auth_token),
         )
         resp.raise_for_status()
         return resp.json()
 
-    def move_card(self, board_key: str, card_number: int, target_column_id: str, user_id: str) -> dict:
-        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json={"column_id": target_column_id}, headers=self._headers(user_id))
+    def move_card(self, board_key: str, card_number: int, target_column_id: str, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json={"column_id": target_column_id}, headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()
 
-    def assign_card(self, board_key: str, card_number: int, assignee_id: str, user_id: str) -> dict:
-        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json={"assignee_id": assignee_id}, headers=self._headers(user_id))
+    def assign_card(self, board_key: str, card_number: int, assignee_id: str, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json={"assignee_id": assignee_id}, headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()
 
-    def update_card(self, board_key: str, card_number: int, updates: dict, user_id: str) -> dict:
-        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json=updates, headers=self._headers(user_id))
+    def update_card(self, board_key: str, card_number: int, updates: dict, user_id: str, auth_token: str = "") -> dict:
+        resp = self.client.patch(f"/api/v1/boards/{board_key}/cards/{card_number}", json=updates, headers=self._headers(user_id, auth_token))
         resp.raise_for_status()
         return resp.json()
 

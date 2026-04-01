@@ -107,6 +107,7 @@ async def confirm_action(request: Request, body: ConfirmRequest):
     user_id = request.headers.get("X-User-ID", "")
     board_key = request.headers.get("X-Board-Key", "")
     user_role = request.headers.get("X-User-Role", "guest")
+    auth_token = request.headers.get("X-Auth-Token", "")
 
     if not body.confirmed:
         request.app.state.pending_actions.pop(body.request_id, None)
@@ -118,7 +119,7 @@ async def confirm_action(request: Request, body: ConfirmRequest):
         raise HTTPException(status_code=404, detail="Action not found or expired")
 
     from app.tools.board_tools import execute_board_action
-    result = execute_board_action(go_client, board_key, user_id, user_role, action_data["action"], action_data["params"])
+    result = execute_board_action(go_client, board_key, user_id, user_role, action_data["action"], action_data["params"], auth_token)
     return {"status": "executed", "result": result}
 
 
