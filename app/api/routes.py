@@ -99,6 +99,7 @@ async def chat(request: Request, body: ChatRequest):
             for i, word in enumerate(words):
                 token = word if i == 0 else " " + word
                 yield f"event: token\ndata: {json.dumps({'content': token})}\n\n"
+                await asyncio.sleep(0.03)
 
             sources = result.get("sources", [])
             if sources:
