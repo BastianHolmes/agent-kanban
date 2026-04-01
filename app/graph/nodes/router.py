@@ -7,6 +7,13 @@ from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
+RAG_KEYWORDS = [
+    "база знаний", "документац", "найди информац", "расскажи про", "расскажи о",
+    "что написано", "что такое", "как работает", "объясни", "покажи документ",
+    "поищи", "найди в доке", "в документах", "knowledge base", "docs",
+    "что известно", "какие есть", "сколько", "статус",
+]
+
 BOARD_KEYWORDS = [
     "создай", "создать", "добавь", "добавить", "перемести", "переместить",
     "перенеси", "перенести", "назначь", "назначить", "удали", "удалить",
@@ -16,7 +23,7 @@ BOARD_KEYWORDS = [
 ]
 
 CODE_KEYWORDS = [
-    "код", "баг", "bug", "fix", "исправь", "исправить", "файл",
+    "код", "баг", "bug", "fix", "исправь", "исправить",
     "функци", "ошибк", "code", "debug", "analyze", "анализ кода",
     "suggest fix", "предложи исправление",
 ]
@@ -36,6 +43,10 @@ Category:"""
 def _keyword_classify(message: str) -> str | None:
     """Fast keyword-based classification. Returns None if no match."""
     lower = message.lower()
+    # RAG has highest priority — explicit knowledge-seeking intent
+    for kw in RAG_KEYWORDS:
+        if kw in lower:
+            return "rag"
     for kw in BOARD_KEYWORDS:
         if kw in lower:
             return "board_management"
