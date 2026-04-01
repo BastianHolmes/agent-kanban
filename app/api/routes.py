@@ -42,15 +42,30 @@ async def chat(request: Request, body: ChatRequest):
     if not user_id or not board_id:
         raise HTTPException(status_code=400, detail="Missing user/board context")
 
-    # Auto-reindex on first chat with a board
+    # Auto-reindex if board has no or very few indexed points
     indexer = request.app.state.indexer
     retriever = request.app.state.retriever
+    reindexed_boards = request.app.state.reindexed_boards
     collection_name = f"board_{board_id}"
-    if not retriever.qdrant.collection_exists(collection_name):
-        logger.info("First chat with board %s — triggering auto-reindex", board_id)
+    needs_reindex = False
+
+    if board_id not in reindexed_boards:
+        if not retriever.qdrant.collection_exists(collection_name):
+            needs_reindex = True
+        else:
+            try:
+                info = retriever.qdrant.get_collection(collection_name)
+                if info.points_count < 5:
+                    needs_reindex = True
+            except Exception:
+                needs_reindex = True
+
+    if needs_reindex:
+        logger.info("Auto-reindex for board %s (first chat or too few points)", board_id)
         go_client = request.app.state.go_client
         try:
             _do_reindex(indexer, go_client, board_id, board_key, user_id, auth_token)
+            reindexed_boards.add(board_id)
         except Exception as e:
             logger.error("Auto-reindex failed for board %s: %s", board_id, e)
 
