@@ -37,6 +37,40 @@ TOOLS_DESCRIPTION = """- create_card: Создать карточку. Params: {
 - update_card: Обновить карточку. Params: {"card_number": N, "title": "...", "description": "...", "priority": "..."}"""
 
 
+import re
+
+
+def _extract_json(text: str) -> dict | None:
+    """Extract a JSON object from text that may contain markdown or reasoning."""
+    if not text:
+        return None
+
+    # Try parsing the whole text
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    try:
+        return json.loads(cleaned)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Search for JSON object in text using brace matching
+    for match in re.finditer(r'\{', text):
+        start = match.start()
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == '{':
+                depth += 1
+            elif text[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except (json.JSONDecodeError, ValueError):
+                        break
+    return None
+
+
 def board_mgmt_node(state: AgentState, go_client) -> dict:
     query = state["messages"][-1]["content"]
     board_key = state["board_key"]
@@ -82,11 +116,13 @@ def board_mgmt_node(state: AgentState, go_client) -> dict:
         data = resp.json()
         msg = data["choices"][0]["message"]
         raw = msg.get("content", "") or msg.get("reasoning_content", "")
+        logger.info("Board mgmt raw response (first 500 chars): %s", raw[:500])
 
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0]
-        action_data = json.loads(cleaned)
+        # Try to extract JSON from the response
+        action_data = _extract_json(raw)
+        if action_data is None:
+            logger.error("Could not extract JSON action from LLM response")
+            return {"response": raw or "Не удалось определить действие.", "sources": []}
     except Exception as e:
         logger.error("Board mgmt LLM call failed: %s", e)
         return {"response": "Не удалось обработать запрос на управление доской.", "sources": []}

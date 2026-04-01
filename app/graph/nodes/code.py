@@ -61,17 +61,36 @@ def code_node(state: AgentState, retriever, go_client) -> dict:
         return {"response": "Не удалось проанализировать код.", "sources": []}
 
     try:
+        # Try to extract JSON action from response
+        action_data = None
         cleaned = answer.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0]
-        action_data = json.loads(cleaned)
-        if action_data.get("action") == "suggest_fix":
+        try:
+            action_data = json.loads(cleaned)
+        except (json.JSONDecodeError, ValueError):
+            # Search for JSON in text
+            import re
+            for match in re.finditer(r'\{', answer):
+                start = match.start()
+                depth = 0
+                for i in range(start, len(answer)):
+                    if answer[i] == '{': depth += 1
+                    elif answer[i] == '}':
+                        depth -= 1
+                        if depth == 0:
+                            try: action_data = json.loads(answer[start:i + 1])
+                            except: pass
+                            break
+                if action_data: break
+
+        if action_data and action_data.get("action") == "suggest_fix":
             return {
                 "pending_action": {"action": "suggest_fix", "params": action_data.get("params", {}), "explanation": action_data.get("explanation", "")},
                 "response": action_data.get("explanation", ""),
                 "sources": sources,
             }
-    except (json.JSONDecodeError, KeyError):
+    except Exception:
         pass
 
     return {"response": answer, "sources": sources}
